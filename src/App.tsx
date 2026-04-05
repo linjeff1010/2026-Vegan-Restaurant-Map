@@ -26,6 +26,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { RESTAURANT_DATA } from './constants';
 import { Restaurant } from './types';
 import { Logo } from './components/Logo';
+import { LoadingScreen } from './components/LoadingScreen';
 import { cn } from './lib/utils';
 
 const getVegIcon = (type: string) => {
@@ -79,6 +80,7 @@ const getPopupVegTagStyle = (type: string) => {
 };
 
 export default function App() {
+  const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState({ city: 'all', type: 'all', search: '', petFriendly: false });
   const [activeCardId, setActiveCardId] = useState<number | null>(null);
   const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : false);
@@ -217,7 +219,11 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] w-full relative overflow-hidden bg-slate-50 pt-16 md:pt-0">
+    <>
+      <AnimatePresence>
+        {isLoading && <LoadingScreen onComplete={() => setIsLoading(false)} />}
+      </AnimatePresence>
+      <div className="flex flex-col h-[100dvh] w-full relative overflow-hidden bg-slate-50 pt-16 md:pt-0">
       
       {/* Mobile Header (Restored) */}
       <header className="md:hidden h-16 bg-white/90 backdrop-blur-md shadow-sm flex items-center justify-between px-6 z-50 fixed top-0 inset-x-0 border-b border-slate-200/50">
@@ -529,5 +535,6 @@ export default function App() {
         </div>
       </div>
     </div>
+    </>
   );
 }

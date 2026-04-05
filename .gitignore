@@ -6,3 +6,11 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Ignore local images
+/public/*.jpg
+/public/*.png
+/public/*.jpeg
+/public/*.gif
+/public/*.svg
+/public/*.webp

@@ -45,7 +45,7 @@ export function LoadingScreen({ onComplete }: { onComplete: () => void }) {
       <div className="relative w-72 h-72 flex items-center justify-center mb-4">
         {/* 請將 src 替換為您上傳的圖片路徑，例如 "/loading-dog.png" */}
         <img 
-          src="https://drive.google.com/uc?export=view&id=14v1NAyw8RuwQOkGKI7ljnIOLWviHFRQQ" 
+          src="/your-dog-image.jpg" 
           alt="Loading Dog" 
           className="w-full h-full object-cover rounded-full"
           referrerPolicy="no-referrer"

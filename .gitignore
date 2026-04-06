@@ -8,9 +8,9 @@ coverage/
 !.env.example
 
 # Ignore local images
-/*.jpg
-/*.png
-/*.jpeg
+/img/*.jpg
+/img/*.png
+/img/*.jpeg
 /*.gif
 /*.svg
 /*.webp

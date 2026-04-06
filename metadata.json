@@ -1,5 +1,5 @@
 {
-  "name": "蔬食地圖指南",
+  "name": "蔬圖誌",
   "description": "提供台北、新北及桃園地區的精選蔬食餐廳地圖，包含純素、奶蛋素及五辛素選項，並支援寵物友善篩選。",
   "requestFramePermissions": [
     "geolocation"

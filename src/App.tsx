@@ -20,14 +20,32 @@ import {
   Milk,
   Egg,
   ChevronDown,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Navigation,
+  Heart,
+  Shield
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { RESTAURANT_DATA } from './constants';
 import { Restaurant } from './types';
 import { Logo } from './components/Logo';
 import { LoadingScreen } from './components/LoadingScreen';
+import { WelcomeModal } from './components/WelcomeModal';
+import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
+import { Chatbot } from './components/Chatbot';
 import { cn } from './lib/utils';
+
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371; // Radius of the earth in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * 
+    Math.sin(dLon / 2) * Math.sin(dLon / 2); 
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); 
+  return R * c; // Distance in km
+};
 
 const getVegIcon = (type: string) => {
   const className = "w-3 h-3 mr-1 shrink-0";
@@ -81,11 +99,14 @@ const getPopupVegTagStyle = (type: string) => {
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [filters, setFilters] = useState({ city: 'all', type: 'all', search: '', petFriendly: false });
   const [activeCardId, setActiveCardId] = useState<number | null>(null);
   const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [visibleCount, setVisibleCount] = useState(20);
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const isDesktopRef = useRef(typeof window !== 'undefined' ? window.innerWidth >= 768 : false);
 
   useEffect(() => {
@@ -100,12 +121,71 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
+  useEffect(() => {
+    // Check if user has seen the welcome modal
+    const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
+    if (hasSeenWelcome) {
+      // If we want to force it to show every time for testing, we can comment this out, 
+      // but usually we want it to show once. Let's make it show once per session or just once.
+      // Actually, the prompt says "在一進來Loading結束後，會有個彈窗先說明網站", 
+      // let's just use localStorage to prevent it from being annoying on every refresh.
+    }
+  }, []);
+
+  const handleLoadingComplete = () => {
+    setIsLoading(false);
+    const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
+    if (!hasSeenWelcome) {
+      setShowWelcomeModal(true);
+    }
+  };
+
+  const handleCloseWelcome = () => {
+    setShowWelcomeModal(false);
+    localStorage.setItem('hasSeenWelcome', 'true');
+  };
+
   const mapRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const markersMapRef = useRef<Record<number, L.Marker>>({});
+  const userMarkerRef = useRef<L.Marker | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+
+  const handleLocateMe = () => {
+    if (!mapRef.current) return;
+    
+    setIsLocating(true);
+    mapRef.current.locate({ setView: true, maxZoom: 16 });
+    
+    mapRef.current.once('locationfound', (e) => {
+      setIsLocating(false);
+      setUserLocation({ lat: e.latlng.lat, lng: e.latlng.lng });
+      setFilters(prev => ({ ...prev, city: 'all' })); // 自動清除縣市篩選，以顯示附近餐廳
+      if (userMarkerRef.current) {
+        userMarkerRef.current.setLatLng(e.latlng);
+      } else {
+        const userIcon = L.divIcon({
+          className: 'bg-transparent',
+          html: `<div class="w-5 h-5 bg-blue-500 border-4 border-white rounded-full shadow-[0_0_10px_rgba(0,0,0,0.3)] relative">
+                  <div class="absolute inset-0 bg-blue-400 rounded-full animate-ping opacity-75"></div>
+                 </div>`,
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
+        });
+        userMarkerRef.current = L.marker(e.latlng, { icon: userIcon, zIndexOffset: 1000 }).addTo(mapRef.current!);
+        userMarkerRef.current.bindPopup('<div class="font-bold text-sm text-slate-700">您的目前位置</div>').openPopup();
+      }
+    });
+
+    mapRef.current.once('locationerror', (e) => {
+      setIsLocating(false);
+      // We avoid using alert() in iframe, so we just log it or we could show a toast.
+      console.error('無法取得位置:', e.message);
+    });
+  };
 
   const filteredRestaurants = useMemo(() => {
-    return RESTAURANT_DATA.filter(r => {
+    let result = RESTAURANT_DATA.filter(r => {
       const matchCity = filters.city === 'all' || r.city === filters.city;
       const matchType = filters.type === 'all' || r.types.includes(filters.type);
       const matchPet = !filters.petFriendly || r.petFriendly;
@@ -113,7 +193,17 @@ export default function App() {
                          r.address.toLowerCase().includes(filters.search.toLowerCase());
       return matchCity && matchType && matchPet && matchSearch;
     });
-  }, [filters]);
+
+    if (userLocation) {
+      result = result.sort((a, b) => {
+        const distA = calculateDistance(userLocation.lat, userLocation.lng, a.lat, a.lng);
+        const distB = calculateDistance(userLocation.lat, userLocation.lng, b.lat, b.lng);
+        return distA - distB;
+      });
+    }
+
+    return result;
+  }, [filters, userLocation]);
 
   useEffect(() => {
     setVisibleCount(20);
@@ -124,7 +214,7 @@ export default function App() {
   useEffect(() => {
     if (!mapRef.current) {
       const map = L.map('map-container', { 
-        attributionControl: false,
+        attributionControl: true,
         zoomControl: false 
       }).setView([25.048, 121.535], 13);
       
@@ -220,8 +310,11 @@ export default function App() {
 
   return (
     <>
+      <WelcomeModal isOpen={showWelcomeModal} onClose={handleCloseWelcome} />
+      <PrivacyPolicyModal isOpen={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
+      <Chatbot setFilters={setFilters} setShowSidebar={setShowSidebar} />
       <AnimatePresence>
-        {isLoading && <LoadingScreen onComplete={() => setIsLoading(false)} />}
+        {isLoading && <LoadingScreen onComplete={handleLoadingComplete} />}
       </AnimatePresence>
       <div className="flex flex-col h-[100dvh] w-full relative overflow-hidden bg-slate-50 pt-16 md:pt-0">
       
@@ -252,9 +345,12 @@ export default function App() {
               <a href="#" className="flex items-center gap-3 p-3 bg-emerald-50 text-emerald-700 rounded-xl transition-colors" onClick={() => setShowMobileMenu(false)}>
                 <Leaf className="w-5 h-5" /> 餐廳總覽
               </a>
-              <a href="#" className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors" onClick={() => setShowMobileMenu(false)}>
-                <Phone className="w-5 h-5 text-emerald-500" /> 聯絡我們
-              </a>
+              <button className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors w-full text-left" onClick={() => { setShowMobileMenu(false); setShowWelcomeModal(true); }}>
+                <Heart className="w-5 h-5 text-emerald-500" /> 站長的話
+              </button>
+              <button className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors w-full text-left" onClick={() => { setShowMobileMenu(false); setShowPrivacyModal(true); }}>
+                <Shield className="w-5 h-5 text-emerald-500" /> 隱私權政策
+              </button>
             </nav>
           </motion.div>
         )}
@@ -415,6 +511,11 @@ export default function App() {
                           {index + 1}. {r.name}
                         </h3>
                         <div className="flex items-center text-slate-800 text-xs font-black shrink-0">
+                          {userLocation && (
+                            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded mr-2 border border-blue-100">
+                              {calculateDistance(userLocation.lat, userLocation.lng, r.lat, r.lng).toFixed(1)} km
+                            </span>
+                          )}
                           {r.rating} <Star className="w-3 h-3 ml-1 fill-yellow-400 text-yellow-400" />
                         </div>
                       </div>
@@ -486,7 +587,8 @@ export default function App() {
             <nav className="flex gap-6 text-sm font-medium text-slate-600">
               <a href="#" className="hover:text-emerald-600 transition-colors">關於地圖</a>
               <a href="#" className="text-emerald-600 border-b-2 border-emerald-600 pb-0.5">餐廳總覽</a>
-              <a href="#" className="hover:text-emerald-600 transition-colors">聯絡我們</a>
+              <button onClick={() => setShowWelcomeModal(true)} className="hover:text-emerald-600 transition-colors">站長的話</button>
+              <button onClick={() => setShowPrivacyModal(true)} className="hover:text-emerald-600 transition-colors">隱私權政策</button>
             </nav>
           </div>
 
@@ -532,6 +634,20 @@ export default function App() {
               </button>
             </div>
           )}
+
+          {/* Locate Me Button */}
+          <div className="absolute bottom-[90px] right-[10px] z-[400]">
+            <button 
+              onClick={handleLocateMe}
+              className={cn(
+                "w-[34px] h-[34px] bg-white rounded-[4px] shadow-[0_1px_5px_rgba(0,0,0,0.65)] flex items-center justify-center transition-colors",
+                isLocating ? "text-blue-500 animate-pulse" : "text-slate-600 hover:bg-yellow-400 hover:text-yellow-900"
+              )}
+              title="定位我的位置"
+            >
+              <Navigation className={cn("w-4 h-4", isLocating && "animate-spin")} />
+            </button>
+          </div>
         </div>
       </div>
     </div>

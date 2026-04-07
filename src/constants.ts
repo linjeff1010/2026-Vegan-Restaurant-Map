@@ -1386,5 +1386,47 @@ export const RESTAURANT_DATA: Restaurant[] = [
     "fb": null,
     "ig": null,
     "petFriendly": false
+  },
+  {
+    "id": 68,
+    "name": "妙觀音素食楊梅店",
+    "types": [
+      "純素",
+      "奶素",
+      "蛋素"
+    ],
+    "rating": 4.5,
+    "reviews": 279,
+    "city": "桃園市",
+    "address": "桃園市楊梅區武營街26號",
+    "desc": "平價美味的連鎖素食小吃，提供多樣化的麵食與小菜。",
+    "lat": 24.908966,
+    "lng": 121.144796,
+    "link": "https://maps.google.com/?q=妙觀音素食楊梅店",
+    "phone": "",
+    "fb": null,
+    "ig": null,
+    "petFriendly": false
+  },
+  {
+    "id": 69,
+    "name": "惠圓蔬食便當",
+    "types": [
+      "純素",
+      "奶素",
+      "蛋素"
+    ],
+    "rating": 4.7,
+    "reviews": 58,
+    "city": "桃園市",
+    "address": "桃園市楊梅區中山路121巷7號",
+    "desc": "在地人推薦的健康蔬食便當，菜色豐富且少油少鹽。",
+    "lat": 24.906843,
+    "lng": 121.146609,
+    "link": "https://maps.google.com/?q=惠圓蔬食便當",
+    "phone": "",
+    "fb": null,
+    "ig": null,
+    "petFriendly": false
   }
 ];

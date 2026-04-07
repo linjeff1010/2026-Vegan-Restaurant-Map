@@ -3,7 +3,6 @@ import * as fs from 'fs';
 
 const rows = RESTAURANT_DATA.map(r => {
   let typesStr = r.types.join(', ');
-  typesStr = typesStr.replace('奶素, 蛋素', '奶蛋素');
   
   return [
     r.id,
